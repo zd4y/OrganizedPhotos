@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.view.View
@@ -16,6 +17,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import java.io.File
 import java.util.Date
 
 private const val TAG = "MainActivity"
@@ -143,7 +145,7 @@ class MainActivity : AppCompatActivity() {
         val projection =
             arrayOf(MediaStore.Images.Media.RELATIVE_PATH)
         val selection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
-        val selectionArgs = arrayOf("Pictures/$APP_DIR/$searchText%")
+        val selectionArgs = arrayOf(Environment.DIRECTORY_PICTURES + File.pathSeparator + APP_DIR + File.pathSeparator + searchText + "%")
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
         val query = resolver.query(collection, projection, selection, selectionArgs, sortOrder)
 
@@ -153,7 +155,7 @@ class MainActivity : AppCompatActivity() {
 
             while (cursor.moveToNext()) {
                 val p = cursor.getString(pc)
-                val folder = p.removePrefix("Pictures/$APP_DIR/").removeSuffix("/")
+                val folder = p.removePrefix(Environment.DIRECTORY_PICTURES + File.pathSeparator + APP_DIR + File.pathSeparator).removeSuffix(File.pathSeparator)
                 if (!folders.contains(folder)) {
                     folders.add(folder)
                 }
@@ -188,6 +190,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getRelativePath(folder: String): String {
-        return "Pictures/$APP_DIR/$folder"
+        return Environment.DIRECTORY_PICTURES + File.pathSeparator + APP_DIR + File.pathSeparator + folder
     }
 }
