@@ -146,7 +146,7 @@ class MainActivity : AppCompatActivity() {
             arrayOf(MediaStore.Images.Media.RELATIVE_PATH)
         val selection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
         val selectionArgs =
-            arrayOf(Environment.DIRECTORY_PICTURES + File.pathSeparator + APP_DIR + File.pathSeparator + searchText + "%")
+            arrayOf(Environment.DIRECTORY_PICTURES + "/" + APP_DIR + "/" + searchText + "%")
         val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
         val query = resolver.query(collection, projection, selection, selectionArgs, sortOrder)
 
@@ -157,8 +157,8 @@ class MainActivity : AppCompatActivity() {
             while (cursor.moveToNext()) {
                 val p = cursor.getString(pc)
                 val folder =
-                    p.removePrefix(Environment.DIRECTORY_PICTURES + File.pathSeparator + APP_DIR + File.pathSeparator)
-                        .removeSuffix(File.pathSeparator)
+                    p.removePrefix(Environment.DIRECTORY_PICTURES + "/" + APP_DIR + "/")
+                        .removeSuffix("/")
                 if (!folders.contains(folder)) {
                     folders.add(folder)
                 }
@@ -193,6 +193,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getRelativePath(folder: String): String {
-        return Environment.DIRECTORY_PICTURES + File.pathSeparator + APP_DIR + File.pathSeparator + folder
+        return Environment.DIRECTORY_PICTURES + "/" + APP_DIR + "/" + folder
     }
 }
