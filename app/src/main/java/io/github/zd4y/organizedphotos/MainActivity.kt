@@ -145,13 +145,12 @@ class MainActivity : AppCompatActivity() {
                     null
                 )
             }
-            // TODO: Support earlier versions of android, maybe try File.renameTo
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        } else {
             val imageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toString() + "/" + getRelativePath(to.name, false)
             File(imageDir).mkdirs()
             val saved = lastSavedImageFile!!
             val image = File(imageDir, saved.name)
-            Files.move(saved.toPath(), image.toPath())
+            saved.renameTo(image)
             numImagesUpdated = 1
         }
 
