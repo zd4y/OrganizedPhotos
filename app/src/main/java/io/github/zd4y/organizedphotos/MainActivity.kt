@@ -189,8 +189,11 @@ class MainActivity : AppCompatActivity() {
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
                     .toString() + "/" + APP_DIR + "/"
             ).listFiles()
-            for (file in files) {
+            for (file in files.sortedBy { file -> file.lastModified() }.reversed()) {
                 if (file.isDirectory) {
+                    if (searchText.isNotEmpty() && !file.name.contains(searchText)) {
+                        continue
+                    }
                     folders.add(file.name)
                 }
             }
@@ -226,7 +229,7 @@ class MainActivity : AppCompatActivity() {
             return FileProvider.getUriForFile(
                 this,
                 "io.github.zd4y.organizedphotos.fileprovider",
-                lastSavedImageFile!!
+                newLastSavedImageFile
             )
         }
     }
