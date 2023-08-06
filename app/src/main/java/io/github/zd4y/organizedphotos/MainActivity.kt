@@ -134,7 +134,7 @@ class MainActivity : AppCompatActivity() {
         var numImagesUpdated = 0
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val updatedImageDetails = ContentValues().apply {
-                put(MediaStore.Images.Media.RELATIVE_PATH, getRelativePath(to.name, true))
+                put(MediaStore.Images.Media.RELATIVE_PATH, getRelativePath(to.name))
             }
             val resolver = applicationContext.contentResolver
             lastSavedImage?.let { uri ->
@@ -146,7 +146,7 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         } else {
-            val imageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toString() + "/" + getRelativePath(to.name, false)
+            val imageDir = getRelativePath(to.name)
             File(imageDir).mkdirs()
             val saved = lastSavedImageFile!!
             val image = File(imageDir, saved.name)
@@ -206,15 +206,14 @@ class MainActivity : AppCompatActivity() {
 
             val newImageDetails = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
-                put(MediaStore.Images.Media.RELATIVE_PATH, getRelativePath(DEFAULT_DIR, true))
+                put(MediaStore.Images.Media.RELATIVE_PATH, getRelativePath(DEFAULT_DIR))
             }
 
             lastSavedImage = resolver.insert(imagesCollection, newImageDetails)
             lastSavedImageFile = null
             return lastSavedImage
         } else {
-            val imageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toString() + "/" + getRelativePath(
-                DEFAULT_DIR, false)
+            val imageDir = getRelativePath(DEFAULT_DIR)
             val created = File(imageDir).mkdirs()
             lastSavedImageFile = File(imageDir, fileName)
             lastSavedImageFile!!.createNewFile()
@@ -237,10 +236,9 @@ class MainActivity : AppCompatActivity() {
         return MediaStore.Images.Media.EXTERNAL_CONTENT_URI
     }
 
-    private fun getRelativePath(folder: String, includePictures: Boolean): String {
+    private fun getRelativePath(folder: String): String {
         val path = "$APP_DIR/$folder"
-        if (includePictures)
-            return Environment.DIRECTORY_PICTURES + "/$path"
-        return path
+        val picturesDir = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) Environment.DIRECTORY_PICTURES else Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toString()
+        return "$picturesDir/$path"
     }
 }
