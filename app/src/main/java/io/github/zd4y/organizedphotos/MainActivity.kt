@@ -189,9 +189,10 @@ class MainActivity : AppCompatActivity() {
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
                     .toString() + "/" + APP_DIR + "/"
             ).listFiles()
+            val search = searchText.lowercase()
             for (file in files.sortedBy { file -> file.lastModified() }.reversed()) {
                 if (file.isDirectory) {
-                    if (searchText.isNotEmpty() && !file.name.contains(searchText)) {
+                    if (searchText.isNotEmpty() && !file.name.lowercase().contains(search)) {
                         continue
                     }
                     folders.add(file.name)
