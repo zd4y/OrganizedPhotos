@@ -82,7 +82,7 @@ class MainActivity : AppCompatActivity() {
                 updateFolderList()
                 searchView.requestFocus()
             } else {
-                Toast.makeText(this, "Image was not saved", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Image was not saved", Toast.LENGTH_LONG).show()
             }
 
         }
