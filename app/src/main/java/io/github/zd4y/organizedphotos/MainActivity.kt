@@ -148,10 +148,11 @@ class MainActivity : AppCompatActivity() {
         } else {
             val imageDir = getRelativePath(to.name)
             File(imageDir).mkdirs()
-            val saved = lastSavedImageFile!!
-            val image = File(imageDir, saved.name)
-            saved.renameTo(image)
-            numImagesUpdated = 1
+            lastSavedImageFile?.let { saved ->
+                val image = File(imageDir, saved.name)
+                saved.renameTo(image)
+                numImagesUpdated = 1
+            }
         }
 
         return numImagesUpdated
