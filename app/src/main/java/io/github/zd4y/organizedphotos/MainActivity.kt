@@ -185,7 +185,10 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         } else {
-            val files = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toString() + "/" + APP_DIR + "/").listFiles()
+            val files = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                    .toString() + "/" + APP_DIR + "/"
+            ).listFiles()
             for (file in files) {
                 if (file.isDirectory) {
                     folders.add(file.name)
@@ -214,9 +217,10 @@ class MainActivity : AppCompatActivity() {
             return lastSavedImage
         } else {
             val imageDir = getRelativePath(DEFAULT_DIR)
-            val created = File(imageDir).mkdirs()
-            lastSavedImageFile = File(imageDir, fileName)
-            lastSavedImageFile!!.createNewFile()
+            File(imageDir).mkdirs()
+            val newLastSavedImageFile = File(imageDir, fileName)
+            newLastSavedImageFile.createNewFile()
+            lastSavedImageFile = newLastSavedImageFile
             lastSavedImage = null
 
             return FileProvider.getUriForFile(
@@ -238,7 +242,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun getRelativePath(folder: String): String {
         val path = "$APP_DIR/$folder"
-        val picturesDir = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) Environment.DIRECTORY_PICTURES else Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).toString()
+        val picturesDir =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) Environment.DIRECTORY_PICTURES else Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_PICTURES
+            ).toString()
         return "$picturesDir/$path"
     }
 }
