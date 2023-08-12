@@ -1,6 +1,8 @@
 package io.github.zd4y.organizedphotos
 
+import android.Manifest
 import android.content.ContentValues
+import android.content.pm.PackageManager
 import android.icu.text.SimpleDateFormat
 import android.net.Uri
 import android.os.Build
@@ -15,11 +17,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.FileProvider
+import androidx.annotation.RequiresApi
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
-import java.nio.file.Files
 import java.util.Date
 
 private const val TAG = "MainActivity"
@@ -33,8 +34,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var takePicture: ActivityResultLauncher<Uri>
     private var folders: MutableList<Folder> = mutableListOf()
     private lateinit var folderAdapter: FolderAdapter
-    private var lastSavedImage: Uri? = null // only for Android Q or greater
-    private var lastSavedImageFile: File? = null // only for lower than Android Q
+    private var lastSavedImage: Uri? = null
+    private var lastSavedImagePath: String = "" // only for android versions lower than Q
     private var searchText: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -87,6 +88,17 @@ class MainActivity : AppCompatActivity() {
 
         }
 
+        val requestPermissionLauncher =
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+                if (!isGranted) {
+                    finishAffinity()
+                }
+            }
+
+        if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+
         launchTakePicture()
     }
 
@@ -119,84 +131,86 @@ class MainActivity : AppCompatActivity() {
             ).show()
 
             1 -> Toast.makeText(this, "Image saved successfully", Toast.LENGTH_SHORT).show()
+
             else -> Toast.makeText(
                 this,
                 "More than one image modified? This shouldn't happen...",
                 Toast.LENGTH_LONG
             ).show()
         }
+        if (numImagesUpdated != 1) {
+            lastSavedImage?.let { applicationContext.contentResolver.delete(it, null, null) }
+        }
         lastSavedImage = null
-        lastSavedImageFile = null
         launchTakePicture()
     }
 
     private fun moveLastSavedImage(to: Folder): Int {
-        var numImagesUpdated = 0
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val updatedImageDetails = ContentValues().apply {
-                put(MediaStore.Images.Media.RELATIVE_PATH, getRelativePath(to.name))
-            }
-            val resolver = applicationContext.contentResolver
-            lastSavedImage?.let { uri ->
-                numImagesUpdated = resolver.update(
-                    uri,
-                    updatedImageDetails,
-                    null,
-                    null
-                )
-            }
-        } else {
-            val imageDir = getRelativePath(to.name)
-            File(imageDir).mkdirs()
-            lastSavedImageFile?.let { saved ->
-                val image = File(imageDir, saved.name)
-                saved.renameTo(image)
-                numImagesUpdated = 1
-            }
+        if (to.name == DEFAULT_DIR) {
+            return 1
         }
 
-        return numImagesUpdated
+        val uri = lastSavedImage ?: run {
+            return 0
+        }
+
+        val contentValues = ContentValues()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, getRelativePath(to.name))
+            contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+        } else {
+            val path = getAbsolutePath(to.name, getImageFileName())
+            File(path).parentFile?.also {
+                if (!it.exists()) {
+                    it.mkdirs()
+                }
+            }
+            val file = File(path)
+            file.createNewFile()
+            File(lastSavedImagePath).renameTo(file)
+            contentValues.put(MediaStore.Images.Media.DATA, path)
+        }
+
+        return applicationContext.contentResolver.update(
+            uri,
+            contentValues,
+            null,
+            null
+        )
     }
 
     private fun getAvailableFolders(): List<String> {
         val folders = mutableListOf<String>()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val resolver = applicationContext.contentResolver
-            val collection = getImageCollection()
-            val projection =
-                arrayOf(MediaStore.Images.Media.RELATIVE_PATH)
-            val selection = "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?"
-            val selectionArgs =
-                arrayOf(Environment.DIRECTORY_PICTURES + "/" + APP_DIR + "/" + searchText + "%")
-            val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
-            val query = resolver.query(collection, projection, selection, selectionArgs, sortOrder)
+        val resolver = applicationContext.contentResolver
+        val collection = getImageCollection()
+        val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
 
-            query?.use { cursor ->
-                val pc = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH)
+        val qOrGreater = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
 
-                while (cursor.moveToNext()) {
-                    val p = cursor.getString(pc)
-                    val folder =
-                        p.removePrefix(Environment.DIRECTORY_PICTURES + "/" + APP_DIR + "/")
-                            .removeSuffix("/")
-                    if (!folders.contains(folder)) {
-                        folders.add(folder)
-                    }
+        val column =
+            if (qOrGreater) MediaStore.Images.Media.RELATIVE_PATH else MediaStore.Images.Media.DATA
+        val projection = arrayOf(column)
+        val selection = "$column LIKE ?"
+        val basePath =
+            if (qOrGreater) Environment.DIRECTORY_PICTURES + File.separator + APP_DIR + File.separator else getBaseFolderAbsolutePath()
+        val selectionArgs =
+            arrayOf("$basePath%$searchText%")
+        val query = resolver.query(collection, projection, selection, selectionArgs, sortOrder)
+
+        query?.use { cursor ->
+            val pc = cursor.getColumnIndexOrThrow(column)
+
+            while (cursor.moveToNext()) {
+                val p = cursor.getString(pc)
+                val folder = if (qOrGreater) {
+                    p.removePrefix(Environment.DIRECTORY_PICTURES + File.separator + APP_DIR + File.separator)
+                        .removeSuffix(File.separator)
+                } else {
+                    File(p).parentFile?.name
                 }
-            }
-        } else {
-            val files = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-                    .toString() + "/" + APP_DIR + "/"
-            ).listFiles()
-            val search = searchText.lowercase()
-            for (file in files.sortedBy { file -> file.lastModified() }.reversed()) {
-                if (file.isDirectory) {
-                    if (searchText.isNotEmpty() && !file.name.lowercase().contains(search)) {
-                        continue
-                    }
-                    folders.add(file.name)
+                if (folder != null && !folders.contains(folder)) {
+                    folders.add(folder)
                 }
             }
         }
@@ -205,35 +219,28 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun createImageFile(): Uri? {
-        val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
-        val fileName = "JPEG_$timeStamp.jpg"
+        val fileName = getImageFileName()
+
+        val contentValues = ContentValues()
+        contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val resolver = applicationContext.contentResolver
-
-            val imagesCollection = getImageCollection()
-
-            val newImageDetails = ContentValues().apply {
-                put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
-                put(MediaStore.Images.Media.RELATIVE_PATH, getRelativePath(DEFAULT_DIR))
-            }
-
-            lastSavedImage = resolver.insert(imagesCollection, newImageDetails)
-            lastSavedImageFile = null
-            return lastSavedImage
+            contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, getRelativePath(DEFAULT_DIR))
+            contentValues.put(MediaStore.Images.Media.IS_PENDING, 1)
         } else {
-            val imageDir = getRelativePath(DEFAULT_DIR)
-            File(imageDir).mkdirs()
-            val newLastSavedImageFile = File(imageDir, fileName)
-            newLastSavedImageFile.createNewFile()
-            lastSavedImageFile = newLastSavedImageFile
-            lastSavedImage = null
-
-            return FileProvider.getUriForFile(
-                this,
-                "io.github.zd4y.organizedphotos.fileprovider",
-                newLastSavedImageFile
-            )
+            val path = getAbsolutePath(DEFAULT_DIR, fileName)
+            File(path).parentFile?.also {
+                if (!it.exists()) {
+                    it.mkdirs()
+                }
+            }
+            lastSavedImagePath = path
+            contentValues.put(MediaStore.Images.Media.DATA, path)
         }
+
+        val resolver = applicationContext.contentResolver
+        lastSavedImage = resolver.insert(getImageCollection(), contentValues)
+        return lastSavedImage
     }
 
     private fun getImageCollection(): Uri {
@@ -245,12 +252,29 @@ class MainActivity : AppCompatActivity() {
         return MediaStore.Images.Media.EXTERNAL_CONTENT_URI
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun getRelativePath(folder: String): String {
-        val path = "$APP_DIR/$folder"
-        val picturesDir =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) Environment.DIRECTORY_PICTURES else Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_PICTURES
-            ).toString()
-        return "$picturesDir/$path"
+        val path = APP_DIR + File.separator + folder
+        return Environment.DIRECTORY_PICTURES + File.separator + path
+    }
+
+    private fun getAbsolutePath(folder: String, fileName: String): String {
+        return StringBuilder(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).absolutePath)
+            .append(File.separator)
+            .append(APP_DIR).append(File.separator)
+            .append(folder).append(File.separator)
+            .append(fileName)
+            .toString()
+    }
+
+    private fun getBaseFolderAbsolutePath(): String {
+        return StringBuilder(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES).absolutePath)
+            .append(File.separator)
+            .append(APP_DIR).append(File.separator).toString()
+    }
+
+    private fun getImageFileName(): String {
+        val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+        return "JPEG_$timeStamp.jpg"
     }
 }
