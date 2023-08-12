@@ -146,7 +146,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun moveLastSavedImage(to: Folder): Int {
-        if (to.name == DEFAULT_DIR) {
+        if (to.name == DEFAULT_DIR && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             return 1
         }
 
