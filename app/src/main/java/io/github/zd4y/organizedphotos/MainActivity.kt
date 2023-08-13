@@ -90,7 +90,9 @@ class MainActivity : AppCompatActivity() {
 
         val requestPermissionLauncher =
             registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-                if (!isGranted) {
+                if (isGranted) {
+                    launchTakePicture()
+                } else {
                     finishAffinity()
                 }
             }
@@ -100,9 +102,9 @@ class MainActivity : AppCompatActivity() {
             checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
         ) {
             requestPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            launchTakePicture()
         }
-
-        launchTakePicture()
     }
 
     private fun launchTakePicture() {
