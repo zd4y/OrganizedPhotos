@@ -18,6 +18,7 @@ import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.io.File
@@ -25,7 +26,6 @@ import java.util.Date
 
 private const val TAG = "MainActivity"
 private const val APP_DIR = "OrganizedPhotos"
-private const val DEFAULT_DIR = "No folder"
 
 class MainActivity : AppCompatActivity() {
     private lateinit var rvFolders: RecyclerView
@@ -34,8 +34,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var takePicture: ActivityResultLauncher<Uri>
     private var folders: MutableList<Folder> = mutableListOf()
     private lateinit var folderAdapter: FolderAdapter
-    private var lastSavedImage: Uri? = null
-    private var lastSavedImagePath: String = "" // only for android versions lower than Q
+    private var cacheImageUri: Uri? = null
+    private var cacheImageFile: File? = null
     private var searchText: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -108,7 +108,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launchTakePicture() {
-        takePicture.launch(createImageFile())
+        takePicture.launch(createTempFile())
+    }
+
+    private fun createTempFile(): Uri {
+        val tempFile = File.createTempFile("picture", ".jpg", externalCacheDir)
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", tempFile)
+        cacheImageUri = uri
+        cacheImageFile = tempFile
+        return uri
     }
 
     private fun updateFolderList() {
@@ -122,65 +130,42 @@ class MainActivity : AppCompatActivity() {
         if (searchText.isNotEmpty()) {
             onFolderClick(Folder(searchText))
         }
-        searchText = ""
         searchView.setQuery("", false)
     }
 
     private fun onFolderClick(folder: Folder) {
-        val numImagesUpdated = moveLastSavedImage(folder)
-        when (numImagesUpdated) {
-            0 -> Toast.makeText(
+        val saved = saveImage(folder.name)
+
+        if (saved) {
+            Toast.makeText(this, "Image saved successfully", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(
                 this,
                 "A problem occurred moving the image to that folder",
                 Toast.LENGTH_LONG
             ).show()
-
-            1 -> Toast.makeText(this, "Image saved successfully", Toast.LENGTH_SHORT).show()
-
-            else -> Toast.makeText(
-                this,
-                "More than one image modified? This shouldn't happen...",
-                Toast.LENGTH_LONG
-            ).show()
         }
-        if (numImagesUpdated != 1) {
-            lastSavedImage?.let { applicationContext.contentResolver.delete(it, null, null) }
-        }
-        lastSavedImage = null
+
         launchTakePicture()
     }
 
-    private fun moveLastSavedImage(to: Folder): Int {
-        if (to.name == DEFAULT_DIR && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            return 1
+    private fun saveImage(folder: String): Boolean {
+        val cacheUri = cacheImageUri ?: run {
+            return false
+        }
+        val newImageUri = createImageFile(folder) ?: run {
+            return false
         }
 
-        val uri = lastSavedImage ?: run {
-            return 0
-        }
-
-        val contentValues = ContentValues()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, getRelativePath(to.name))
-            contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
-        } else {
-            val path = getAbsolutePath(to.name, getImageFileName())
-            File(path).parentFile?.also {
-                if (!it.exists()) {
-                    it.mkdirs()
-                }
+        val resolver = applicationContext.contentResolver
+        resolver.openInputStream(cacheUri)?.use {cacheStream ->
+            resolver.openOutputStream(newImageUri)?.use { newStream ->
+                cacheStream.copyTo(newStream)
+                cacheImageFile?.delete()
+                return true
             }
-            val file = File(path)
-            File(lastSavedImagePath).renameTo(file)
-            contentValues.put(MediaStore.Images.Media.DATA, path)
         }
-
-        return applicationContext.contentResolver.update(
-            uri,
-            contentValues,
-            null,
-            null
-        )
+        return false
     }
 
     private fun getAvailableFolders(): List<String> {
@@ -222,29 +207,25 @@ class MainActivity : AppCompatActivity() {
         return folders
     }
 
-    private fun createImageFile(): Uri? {
+    private fun createImageFile(folder: String): Uri? {
         val fileName = getImageFileName()
 
         val contentValues = ContentValues()
         contentValues.put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, getRelativePath(DEFAULT_DIR))
-            contentValues.put(MediaStore.Images.Media.IS_PENDING, 1)
+            contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, getRelativePath(folder))
         } else {
-            val path = getAbsolutePath(DEFAULT_DIR, fileName)
+            val path = getAbsolutePath(folder, fileName)
             File(path).parentFile?.also {
                 if (!it.exists()) {
                     it.mkdirs()
                 }
             }
-            lastSavedImagePath = path
             contentValues.put(MediaStore.Images.Media.DATA, path)
         }
 
-        val resolver = applicationContext.contentResolver
-        lastSavedImage = resolver.insert(getImageCollection(), contentValues)
-        return lastSavedImage
+        return applicationContext.contentResolver.insert(getImageCollection(), contentValues)
     }
 
     private fun getImageCollection(): Uri {
