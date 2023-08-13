@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OrganizedPhotos</string>
+    <string name="new_folder">Nueva Carpeta</string>
+    <string name="image_saved_success">Imágen guardada correctamente</string>
+    <string name="image_not_saved">La imágen no fue guardada</string>
+    <string name="image_saved_error">Ha ocurrido un problema guardando la imágen</string>
+</resources>

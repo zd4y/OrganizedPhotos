@@ -83,7 +83,7 @@ class MainActivity : AppCompatActivity() {
                 updateFolderList()
                 searchView.requestFocus()
             } else {
-                Toast.makeText(this, "Image was not saved", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, R.string.image_not_saved, Toast.LENGTH_LONG).show()
             }
 
         }
@@ -137,11 +137,11 @@ class MainActivity : AppCompatActivity() {
         val saved = saveImage(folder.name)
 
         if (saved) {
-            Toast.makeText(this, "Image saved successfully", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.image_saved_success, Toast.LENGTH_SHORT).show()
         } else {
             Toast.makeText(
                 this,
-                "A problem occurred moving the image to that folder",
+                R.string.image_saved_error,
                 Toast.LENGTH_LONG
             ).show()
         }

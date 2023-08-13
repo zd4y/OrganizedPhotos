@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">OrganizedPhotos</string>
+    <string name="new_folder">New Folder</string>
+    <string name="image_saved_success">Image saved successfully</string>
+    <string name="image_not_saved">Image was not saved</string>
+    <string name="image_saved_error">A problem occurred saving the image</string>
 </resources>

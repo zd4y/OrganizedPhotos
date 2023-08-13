@@ -35,7 +35,7 @@
         android:drawableLeft="@drawable/baseline_create_new_folder_24"
         android:drawablePadding="8dp"
         android:drawableTint="#4CAF50"
-        android:text="New Folder"
+        android:text="@string/new_folder"
         android:textAppearance="@style/TextAppearance.AppCompat.Large"
         android:textStyle="bold"
         android:visibility="gone"
