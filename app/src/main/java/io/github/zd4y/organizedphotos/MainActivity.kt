@@ -95,7 +95,10 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-        if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+        if (
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+            checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+        ) {
             requestPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }
 
@@ -166,7 +169,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             val file = File(path)
-            file.createNewFile()
             File(lastSavedImagePath).renameTo(file)
             contentValues.put(MediaStore.Images.Media.DATA, path)
         }
