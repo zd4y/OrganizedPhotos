@@ -195,7 +195,7 @@ class MainActivity : AppCompatActivity() {
         val projection = arrayOf(column)
         val selection = "$column LIKE ?"
         val basePath =
-            if (qOrGreater) Environment.DIRECTORY_PICTURES + File.separator + APP_DIR + File.separator else getBaseFolderAbsolutePath()
+            if (qOrGreater) getRelativePath(null) else getBaseFolderAbsolutePath()
         val selectionArgs =
             arrayOf("$basePath%$searchText%")
         val query = resolver.query(collection, projection, selection, selectionArgs, sortOrder)
@@ -255,8 +255,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
-    private fun getRelativePath(folder: String): String {
-        val path = APP_DIR + File.separator + folder
+    private fun getRelativePath(folder: String?): String {
+        var path = APP_DIR + File.separator
+        if (folder != null) {
+            path += folder
+        }
         return Environment.DIRECTORY_PICTURES + File.separator + path
     }
 
